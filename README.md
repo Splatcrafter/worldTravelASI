@@ -1,11 +1,50 @@
 # World Travel ASI Fork
 
-   Fork of [WorldTravelTeam/ASI](https://github.com/WorldTravelTeam/ASI) with fixes for GTA V build 3751+ (April 2026).
+   Fork chain:
 
-   The original mod was discontinued in January 2025. This fork applies fixes
-   needed to keep the mod working with newer game builds.
+   1. **[WorldTravelTeam/ASI](https://github.com/WorldTravelTeam/ASI)** — the original mod, discontinued January 2025.
+   2. **googleplex2010/worldTravelASI** — first community fork, the immediate upstream of this repo.
+   3. **This repo** — fork of googleplex2010's fork, with fixes for GTA V **build 3788 and newer** (the December 2025 update line onward).
 
-   ## Changes from upstream
+   Two diff sections follow:
+
+   - *Changes from upstream (googleplex2010/worldTravelASI)* lists fixes
+     that googleplex2010 already carried over the original WorldTravelTeam
+     baseline. Reproduced here so readers know the full set of patches
+     in the binary, not because this repo authored them.
+   - *Changes in this fork (against googleplex2010/worldTravelASI)* lists
+     diffs that this repo applies on top of googleplex2010 — i.e. what is
+     actually new here.
+
+  ## Changes in this fork (against googleplex2010/worldTravelASI)
+  
+  - **`WorldTravelPatches/src/Water.cpp`** (`Water::Init`): rewritten on
+    2026-05-10 to fix the Liberty City water suppression box on build 3788
+    (and any future build where this hook silently mis-installs). The
+    upstream version did six `hook::get_address` reads at hardcoded offsets
+    inside the resolved `switchWater` function body and committed the
+    results to statics with no validation; if any single offset was stale,
+    `bd_min_x/min_y/max_x/max_y` ended up pointing into unrelated memory
+    and the LC water plane rendered offset from the island (visible as
+    "water hole" sitting next to LC instead of over it, flooding subway
+    and tunnels). The new implementation:
+      1. Counts pattern matches and bails with an error log on != 1.
+      2. Sanity-checks every derived pointer against the **runtime**
+         ASI image range computed via `hook::getRVA(0)` and
+         `hook::getRVA(hook::exe_end() - 0x140000000)`. The static
+         `0x140000000..0x146000000` constants are the PE base before ASLR;
+         comparing post-relocation runtime addresses (`0x7FF7_xxxx_xxxx` on
+         x64) against them never matches — a subtle bug that makes a naive
+         range check skip every install.
+      3. Stages the six derived pointers in locals and only commits to the
+         statics + installs the function-stub hook if **all** reads pass
+         the range check. A half-wired hook used to scribble into random
+         memory on the first level switch.
+      4. Logs every step via `sprintf_s` (same reason as PopZones — the
+         bundled spdlog `{}` placeholders fail silently in this build of
+         the format library).
+
+   ## Changes from upstream (googleplex2010/worldTravelASI)
 
    - **`WorldTravelPatches/src/PopZones.h`**: Loosened pattern 2's jump-distance
      byte from `EB 5F` to `EB ?` for GTA V build 3751+. Rockstar inserted ~4 bytes
