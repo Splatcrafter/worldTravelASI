@@ -57,3 +57,11 @@ void IplGroup::RemoveIplGroupIfActive()
 		groupIpls[i].RemoveIplIfActive();
 	}
 }
+
+void IplGroup::CaptureStates()
+{
+	for (int i = 0; i < groupIplNames.size(); i++)
+	{
+		groupIpls[i].SetIplState();
+	}
+}

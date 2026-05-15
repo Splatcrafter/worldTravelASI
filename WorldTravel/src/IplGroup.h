@@ -19,5 +19,6 @@ public:
 	void RequestIplGroupIfNotActive();
 	void RemoveIplGroup(bool checkState);
 	void RemoveIplGroupIfActive();
+	void CaptureStates();
 };
 #endif

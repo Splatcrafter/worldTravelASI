@@ -76,6 +76,51 @@
     only the standalone LC nighttime-light request blocks. Any other level
     just needs to ship the file to opt in.
 
+  - **1.2.1 — `WorldTravel/src/Ipl.{h,cpp}` + `IplGroup.{h,cpp}` +
+    `Level.{h,cpp}` + `LevelSwitch.cpp`** (pre-teleport `iplState` snapshot
+    + FlightController typo fixes): added on 2026-05-15 to fix the
+    "physical Los Santos map is missing after returning from Liberty City"
+    bug. Two independent defects both poisoned the saved `iplState` for LS,
+    which is the only level that consults it on reload (LS sets
+    `defaultMap=true`, so `Level::LoadLevel` calls
+    `RequestIplGroup(checkState=true)` — IPLs whose `iplState` reads `false`
+    get silently skipped). NY/CP/SF use `defaultMap=false` →
+    `checkState=false` and are unaffected; the radar/minimap and pause map
+    have their own asset paths so they keep rendering, hiding the fact
+    that the actual world geometry never re-streamed.
+
+    1. **Streaming-thread race in `PerformTeleport` / `SwitchMap`.** Both
+       flows teleport the player to `(11000, 11000, 1500)` *before* calling
+       `losSantos.UnloadLevel()`. Within that single script frame GTA's
+       streaming thread reacts to the position jump and begins tearing
+       down LS IPLs, so `IS_IPL_ACTIVE` inside `Ipl::SetIplState()`
+       (called by `Ipl::RemoveIpl(saveState=true)`) can already return
+       `false` for IPLs that were genuinely active a millisecond earlier.
+       The wrong `false` gets saved, the matching `LoadLevel` on the
+       return trip skips the request, and LS comes back as an empty
+       skybox. Fix: new `Level::CaptureIplStates()` walks every tracked
+       IPL group and snapshots `IS_IPL_ACTIVE` *while the player is still
+       standing in the level*, called from both `PerformTeleport` and
+       `SwitchMap` right after `SetPlayerLocationID(-1)` and before the
+       away-teleport. A new `Ipl::iplStateCaptured` latch makes the
+       subsequent in-Unload auto-snapshot a no-op when an explicit capture
+       already happened, while leaving the auto-snapshot intact for code
+       paths (AirportTravel, DocksTravel, FlightController) that don't go
+       through `CaptureIplStates()`. `Ipl::SetIplName` deliberately does
+       *not* raise the latch — at startup the streaming system has not
+       necessarily finished activating every default IPL, so the first
+       real unload should still get to refresh that placeholder.
+    2. **Two copy-paste typos in `FlightController`** at the LC→LS and
+       LC→CP flight-trigger boundaries:
+       `losSantos.UnloadLevel()` where `LoadLevel()` was intended (the
+       arrival, not the departure), and the matching
+       `cayoPerico.UnloadLevel()` typo. Anyone who once flew back from LC
+       to LS instead of fast-travelling permanently poisoned LS's
+       `iplState` (the rogue Unload snapshotted "currently inactive"
+       because the player had just been teleported far away), making
+       every subsequent F11 → LS surface bug #1's symptom even though
+       the F11 path itself wasn't to blame.
+
    ## Changes from upstream (googleplex2010/worldTravelASI)
 
    - **`WorldTravelPatches/src/PopZones.h`**: Loosened pattern 2's jump-distance

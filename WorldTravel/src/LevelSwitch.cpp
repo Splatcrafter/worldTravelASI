@@ -1729,7 +1729,7 @@ namespace levelSwitch
 					NETWORK::NETWORK_CLEAR_CLOCK_TIME_OVERRIDE();
 				}
 				loadSantos();
-				losSantos.UnloadLevel();
+				losSantos.LoadLevel();
 				worldtravel::SetPlayerLocationID(0);
 				CAM::DO_SCREEN_FADE_IN(800);
 
@@ -1769,7 +1769,7 @@ namespace levelSwitch
 				}
 				unloadLiberty();
 				loadCayo();
-				cayoPerico.UnloadLevel();
+				cayoPerico.LoadLevel();
 				CAM::DO_SCREEN_FADE_IN(800);
 
 			}
@@ -2330,6 +2330,24 @@ namespace levelSwitch
 		WAIT(800);
 		worldtravel::SetPlayerLocationID(-1);
 
+		// Snapshot IPL states while the player is still standing in the
+		// current map. If we wait until UnloadLevel runs, the player has
+		// already been punted to (11000,11000,1500) and GTA's streaming
+		// thread may have begun unstreaming the LS IPLs in response — at
+		// which point IS_IPL_ACTIVE inside SetIplState() reports false and
+		// the saved iplState is wrong, so the matching LoadLevel(checkState=true)
+		// on the return trip silently skips the request. Only defaultMap=true
+		// levels (LS) actually consult iplState on reload, but snapshotting
+		// is cheap so we do it for every level.
+		switch (currentLocation)
+		{
+		case 1: libertyCity.CaptureIplStates(); break;
+		case 2: northYankton.CaptureIplStates(); break;
+		case 3: cayoPerico.CaptureIplStates(); break;
+		case 4: santaFuegos.CaptureIplStates(); break;
+		default: losSantos.CaptureIplStates(); break;
+		}
+
 		// TP player to temp location
 		ENTITY::FREEZE_ENTITY_POSITION(player, true);
 		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(player, FlyToLCFromLSCoords[0] + 1500, FlyToLCFromLSCoords[1] + 1500, FlyToLCFromLSCoords[2] + 1500, 0, 0, 1);
@@ -2607,6 +2625,18 @@ namespace levelSwitch
 		CAM::DO_SCREEN_FADE_OUT(800);
 		WAIT(800);
 		worldtravel::SetPlayerLocationID(-1);
+
+		// Snapshot IPL states before the character-switch camera ride pushes
+		// the player far enough away to trigger streaming-thread teardown.
+		// See PerformTeleport for the full rationale.
+		switch (currentLocation)
+		{
+		case 1: libertyCity.CaptureIplStates(); break;
+		case 2: northYankton.CaptureIplStates(); break;
+		case 3: cayoPerico.CaptureIplStates(); break;
+		case 4: santaFuegos.CaptureIplStates(); break;
+		default: losSantos.CaptureIplStates(); break;
+		}
 
 		// Unload the current map
 		switch (currentLocation)

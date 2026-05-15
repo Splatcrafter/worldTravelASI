@@ -97,6 +97,18 @@ public:
 
 	void UnloadLevel();
 
+	// Snapshot iplState for every tracked IPL of this level *right now*.
+	// Used by the teleport flow to capture state before the player gets
+	// punted to (11000,11000,1500): once the player is far away GTA's
+	// streaming thread can race ahead and start tearing down LS IPLs, at
+	// which point UnloadLevel's IS_IPL_ACTIVE-based save records false and
+	// the subsequent LoadLevel(checkState=true) skips the request on return.
+	// Symptom: physical LS world stays unstreamed after LC→LS even though
+	// the radar/pause-map still render. Only matters for defaultMap=true
+	// levels (LS) since the others use checkState=false on reload, but
+	// cheap enough to always run.
+	void CaptureIplStates();
+
 	void RemoveForcedIpls();
 
 	void DisableActiveFiles();

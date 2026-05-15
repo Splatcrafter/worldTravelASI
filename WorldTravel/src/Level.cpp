@@ -313,6 +313,26 @@ void Level::UnloadLevel()
 	}
 }
 
+void Level::CaptureIplStates()
+{
+	if (hasBaseIplGroup)
+		baseIplGroup.CaptureStates();
+	if (worldtravel::MpMap::IsMPMapActive())
+	{
+		if (hasMpIplGroup)
+			mpIplGroup.CaptureStates();
+	}
+	else
+	{
+		if (hasSpIplGroup)
+			spIplGroup.CaptureStates();
+	}
+	if (hasModIplGroup)
+		modIplGroup.CaptureStates();
+	if (hasLodLightIplGroup && loadLodLights)
+		lodLightIplGroup.CaptureStates();
+}
+
 void Level::RemoveForcedIpls()
 {
 	mpForcedIplGroup.RemoveIplGroupIfActive();
