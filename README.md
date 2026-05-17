@@ -121,6 +121,28 @@
        every subsequent F11 → LS surface bug #1's symptom even though
        the F11 path itself wasn't to blame.
 
+  - **1.2.2 — `WorldTravel/src/ZonedModel.cpp`** (vehicle un-suppression
+    fix): added on 2026-05-17 to fix bug reports of LSPD vehicles spawning
+    in Liberty City after the 1.2.1 streaming fix landed. The hot path is
+    `ZonedModel::SetZonedModelSuppressed(bool isSuppressed, bool type)`:
+    the vehicle branch had a hard-coded `true` instead of forwarding the
+    `isSuppressed` parameter to `SET_VEHICLE_MODEL_IS_SUPPRESSED`, so
+    every call — including the un-suppression that `LoadLevel` issues for
+    the destination map's vehicles — actually re-suppressed the model.
+    Vehicles entered a one-way trap: once any transition touched a
+    `ZonedVehicles.txt` entry, that model could not come back. The ped
+    branch (`SET_PED_MODEL_IS_SUPPRESSED`) was already correct, which is
+    why the symptom was vehicle-only.
+
+    This bug had been latent since the initial fork commit; pre-1.2.1 it
+    was masked because LS IPLs themselves never re-streamed after a LC
+    round-trip (no world geometry, no vehicle spawns to notice), so the
+    leaky suppression state went undetected. Fixing the IPL pipeline in
+    1.2.1 restored a working spawn loop and surfaced the suppression
+    failure. Fix is a one-liner: forward `isSuppressed` to the native
+    instead of passing `true`. Resolves the "LSPD cars occasionally
+    appearing in Liberty City after fast travel" report.
+
    ## Changes from upstream (googleplex2010/worldTravelASI)
 
    - **`WorldTravelPatches/src/PopZones.h`**: Loosened pattern 2's jump-distance
